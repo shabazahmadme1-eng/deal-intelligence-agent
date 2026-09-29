@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deal Intelligence Agent</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --paper: #f4f1e8;
+    --sheet: #ffffff;
+    --ink: #191c1f;
+    --muted: #5c6167;
+    --line: #ddd8c8;
+    --red: #be3a2b;
+    --red-wash: #f8e7e3;
+    --pine: #2e5b3e;
+    --pine-wash: #e6efe8;
+    --night: #14161a;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--ink); background: var(--paper);
+    font: 15px/1.55 -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  header.top {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 22px; background: var(--night); color: #f2efe4;
+  }
+  header.top .wordmark { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+  header.top .wordmark span { font-family: Georgia, "Times New Roman", serif; font-style: italic; font-weight: 400; font-size: 15px; color: #b9b29e; }
+  .badges { display: flex; gap: 8px; font-size: 12px; flex-wrap: wrap; }
+  .badge {
+    border: 1px solid #4a4e55; border-radius: 4px; padding: 3px 9px; color: #cfc9b8;
+    font-family: var(--mono); white-space: nowrap;
+  }
+  .badge.ok { border-color: #7fb98f; color: #9fd4ae; }
+  main { display: grid; grid-template-columns: 288px 1fr; gap: 18px; padding: 20px 22px 44px; max-width: 1200px; margin: 0 auto; align-items: start; }
+  .rail {
+    background: transparent; border: none; padding: 0;
+  }
+  .rail h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--muted); margin: 2px 4px 10px; font-weight: 700;
+  }
+  .deal-btn {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    background: var(--sheet); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 3px; padding: 11px 12px 10px; margin-bottom: 8px;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .deal-btn:hover { border-color: var(--muted); background: var(--sheet); }
+  .deal-btn.active { border-color: var(--red); background: var(--paper); }
+  .deal-btn.active:hover { border-color: var(--red); background: var(--paper); }
+  .deal-btn .co { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; display: block; }
+  .deal-btn .meta { font-family: var(--mono); font-size: 11.5px; color: var(--muted); display: block; margin-top: 2px; }
+  .deal-btn .meter-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .deal-btn .meter { flex: 1; height: 5px; background: var(--paper); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .deal-btn .meter i { display: block; height: 100%; background: var(--red); }
+  .deal-btn .mem { font-family: var(--mono); font-size: 11px; color: var(--red); white-space: nowrap; }
+  .rail .demo-row { display: flex; gap: 8px; padding: 6px 0 4px; }
+  .console {
+    background: var(--sheet); border: 1px solid var(--line); border-radius: 3px;
+    padding: 26px 28px 24px; min-width: 0;
+    box-shadow: 0 1px 0 var(--line), 0 10px 28px -22px rgba(25, 28, 31, 0.45);
+  }
+  .sheet-eyebrow {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--red); margin: 0 0 6px;
+  }
+  .deal-head h1 { font-size: 34px; line-height: 1.05; letter-spacing: -0.025em; font-weight: 800; margin: 0 0 4px; }
+  .deal-head p { margin: 0 0 16px; color: var(--muted); font-size: 13.5px; font-family: var(--mono); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+  button {
+    font: inherit; border-radius: 3px; cursor: pointer;
+    border: 1px solid var(--ink); background: var(--ink); color: #f5f2e9;
+    padding: 8px 15px; font-size: 14px; font-weight: 600; transition: background 120ms ease, color 120ms ease;
+  }
+  button:hover { background: #000; }
+  button.secondary { background: var(--sheet); color: var(--ink); }
+  button.secondary:hover { background: var(--paper); }
+  button.small { font-size: 12.5px; padding: 6px 11px; font-weight: 600; }
+  button:disabled { opacity: 0.5; cursor: wait; }
+  #mode-note {
+    font-family: Georgia, "Times New Roman", serif; font-style: italic;
+    color: var(--red); font-size: 14px; margin: 12px 0;
+  }
+  .sheet-grid { display: grid; grid-template-columns: 1fr 232px; gap: 0; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .out {
+    padding: 16px 18px; white-space: pre-wrap; overflow-wrap: break-word; font-size: 14.5px; min-height: 120px; margin: 0;
+  }
+  .out:empty::before { content: "Run “Brief me” to see what the agent remembers about this deal."; color: var(--muted); font-family: Georgia, serif; font-style: italic; }
+  .mem-used {
+    margin: 0; border-left: 2px solid var(--red); background: var(--red-wash);
+    padding: 12px 14px; font-size: 12.5px; min-width: 0;
+  }
+  .mem-used summary { cursor: pointer; font-weight: 700; font-size: 12.5px; color: var(--red); }
+  .mem-used ol { margin: 10px 0 0; padding: 0; list-style: none; }
+  .mem-used li { margin: 0 0 10px; padding: 0; color: #4a3f3a; overflow-wrap: break-word; }
+  .mem-used li:last-child { margin-bottom: 0; }
+  .mem-used .eno {
+    font-family: var(--mono); font-weight: 700; font-size: 11px; color: var(--sheet);
+    background: var(--red); border-radius: 3px; padding: 1px 6px; margin-right: 6px; white-space: nowrap;
+  }
+  .mem-used .ekind { font-family: var(--mono); font-size: 11px; color: var(--red); }
+  section.block { margin-top: 26px; }
+  section.block > h2 {
+    font-size: 18px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 4px;
+  }
+  section.block > p.sub { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  section.block label.field { display: block; font-size: 12.5px; font-weight: 700; margin: 10px 0 4px; }
+  textarea, input[type="text"] {
+    width: 100%; font: inherit; border: 1px solid var(--line); border-radius: 3px; padding: 9px 11px; background: #fffdf8;
+  }
+  textarea:focus, input[type="text"]:focus { border-color: var(--ink); outline: none; }
+  textarea { min-height: 88px; resize: vertical; }
+  .form-row { display: flex; gap: 8px; margin-top: 8px; align-items: flex-end; }
+  .form-row .grow { flex: 1; min-width: 0; }
+  .form-row .grow label { display: block; font-size: 12.5px; font-weight: 700; margin: 0 0 4px; }
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .timeline li { padding: 10px 2px; border-top: 1px solid var(--line); font-size: 13.5px; overflow-wrap: break-word; }
+  .timeline li:first-child { border-top: none; }
+  .timeline .kind {
+    font-family: var(--mono); font-size: 11px; color: var(--pine);
+    background: var(--pine-wash); border: 1px solid #c4d6c9; border-radius: 3px;
+    padding: 1px 7px; margin-right: 9px; white-space: nowrap;
+  }
+  .timeline .kind.objection { color: var(--red); background: var(--red-wash); border-color: #e3b8b0; }
+  .timeline small { color: var(--muted); font-family: var(--mono); font-size: 11.5px; }
+  .timeline .empty { color: var(--muted); font-family: Georgia, serif; font-style: italic; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 0 0 30px; font-family: var(--mono); }
+  :focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+  @media (max-width: 880px) {
+    main { grid-template-columns: 1fr; }
+    .sheet-grid { grid-template-columns: 1fr; }
+    .mem-used { border-left: none; border-top: 2px solid var(--red); }
+    .deal-head h1 { font-size: 28px; }
+  }
+  @media (max-width: 600px) {
+    header.top, .form-row { flex-wrap: wrap; }
+    .form-row button { width: 100%; }
+    .console { padding: 20px 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wordmark">Deal Intel <span>/ the rep who never forgets</span></div>
+  <div class="badges">
+    <span class="badge" id="b-mem">memory: …</span>
+    <span class="badge" id="b-llm">llm: …</span>
+  </div>
+</header>
+<main>
+  <aside class="rail" aria-label="Deals">
+    <h2>Pipeline</h2>
+    <div id="deals"></div>
+    <div class="demo-row">
+      <button class="secondary small" id="btn-seed" title="Load staged call history">Load demo data</button>
+      <button class="secondary small" id="btn-reset" title="Wipe local memory (fresh demo)">Reset</button>
+    </div>
+  </aside>
+  <div class="console">
+    <p class="sheet-eyebrow">Call prep sheet</p>
+    <div class="deal-head"><h1 id="d-company">—</h1><p id="d-meta"></p></div>
+    <div class="actions">
+      <button id="btn-brief">Brief me before the call</button>
+      <button class="secondary" id="btn-baseline">Compare without memory</button>
+      <button class="secondary" id="btn-followup">Draft follow-up</button>
+      <button class="secondary" id="btn-tactics">Suggest tactics</button>
+    </div>
+    <p id="mode-note" role="status"></p>
+    <div class="sheet-grid">
+      <div class="out" id="out" role="status" aria-live="polite"></div>
+      <details class="mem-used" id="mem-wrap" open>
+        <summary id="mem-summary">Evidence: —</summary>
+        <ol id="mem-list"></ol>
+      </details>
+    </div>
+    <section class="block" aria-label="Log a call">
+      <h2>Field notes</h2>
+      <p class="sub">What happened on the call? Save it and the next brief cites it back.</p>
+      <label class="field" for="notes">Call notes</label>
+      <textarea id="notes" maxlength="20000" placeholder="Objections, stakeholders, pricing, competitors, next steps…"></textarea>
+      <div class="form-row">
+        <div class="grow">
+          <label for="outcome">Outcome</label>
+          <input type="text" id="outcome" maxlength="2000" placeholder="e.g. Price objection raised">
+        </div>
+        <button id="btn-log">Retain in memory</button>
+      </div>
+    </section>
+    <section class="block" aria-label="Timeline">
+      <h2>Deal ledger</h2>
+      <p class="sub">Stored memory timeline (up to 100 facts).</p>
+      <ul class="timeline" id="timeline"></ul>
+    </section>
+  </div>
+</main>
+<footer>Synthetic sample deals · Review drafts before use · Single-team local prototype</footer>
+<script>
+const $ = (id) => document.getElementById(id);
+let current = null, busy = false, resetAvailable = false;
+const drafts = new Map();
+let pendingCall = null;
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = Array.isArray(data.detail) ? data.detail.map(x => x.msg).join("; ") : data.detail;
+    throw new Error(detail || `Request failed (${res.status})`);
+  }
+  return data;
+}
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function setControls() {
+  document.querySelectorAll("button").forEach(b => b.disabled = busy || (!current && !["btn-seed"].includes(b.id)) || (b.id === "btn-reset" && !resetAvailable));
+  $("notes").disabled = busy || !current;
+  $("outcome").disabled = busy || !current;
+}
+function showMemories(used) {
+  $("mem-summary").textContent = used.length ? `Evidence (${used.length})` : "Evidence: —";
+  $("mem-list").innerHTML = used.length
+    ? used.map((m, i) => `<li><span class="eno">E${i + 1}</span><span class="ekind">${esc(m.metadata.kind || "general")}${m.metadata.bank_id ? " · " + esc(m.metadata.bank_id) : ""}</span><br>${esc(m.text)}</li>`).join("")
+    : "<li>No evidence used for this response.</li>";
+}
+async function refreshHealth() {
+  const h = await api("/api/health");
+  resetAvailable = h.reset_available;
+  $("b-mem").textContent = "memory: " + h.memory_backend;
+  $("b-mem").classList.toggle("ok", h.memory_backend === "hindsight");
+  $("b-llm").textContent = h.llm_configured ? "Groq configured" : "Groq not configured";
+  $("mode-note").textContent = h.demo_only
+    ? "Offline simulation: local keyword retrieval and template fallback. Real Hindsight must be enabled for submission."
+    : "Hindsight selected. Briefs with stored facts use Hindsight reflection; follow-ups and tactics use Groq or a labeled template.";
+}
+async function refreshDeals() {
+  const {deals} = await api("/api/deals");
+  $("deals").innerHTML = deals.map(d => `<button class="deal-btn${d.id === current ? " active" : ""}" data-id="${esc(d.id)}"><span class="co">${esc(d.company)}</span><span class="meta">${esc(d.value)} · ${esc(d.stage)}</span><span class="meter-row"><span class="meter"><i style="width:${Math.min(100, d.memory_count * 8)}%"></i></span><span class="mem">${d.memory_count} notes</span></span></button>`).join("");
+  document.querySelectorAll(".deal-btn").forEach(b => b.addEventListener("click", () => run(() => selectDeal(b.dataset.id))));
+  if (!current && deals.length) await selectDeal(deals[0].id);
+  setControls();
+}
+async function selectDeal(id) {
+  if (current) drafts.set(current, {notes: $("notes").value, outcome: $("outcome").value});
+  const d = await api(`/api/deals/${encodeURIComponent(id)}`);
+  current = id;
+  $("d-company").textContent = d.company;
+  $("d-meta").textContent = `${d.contact}, ${d.contact_title} · ${d.value} · ${d.stage} · vs ${d.competitors.join(", ")}`;
+  const draft = drafts.get(id) || {};
+  $("notes").value = draft.notes || "";
+  $("outcome").value = draft.outcome || "";
+  document.querySelectorAll(".deal-btn").forEach(b => b.classList.toggle("active", b.dataset.id === id));
+  renderTimeline(d.timeline);
+  $("out").textContent = "";
+  showMemories([]);
+}
+function renderTimeline(items) {
+  $("timeline").innerHTML = items.length ? items.map(m => {
+    const kind = esc(m.metadata.kind || "general");
+    const cls = (m.metadata.kind === "objection") ? "kind objection" : "kind";
+    return `<li><span class="${cls}">${kind}</span>${esc(m.text)}${m.timestamp ? `<br><small>${esc(new Date(m.timestamp * 1000).toLocaleString())}</small>` : ""}</li>`;
+  }).join("") : '<li class="empty">No memories yet. Log a call or load the synthetic demo.</li>';
+}
+async function refreshTimeline() {
+  const d = await api(`/api/deals/${encodeURIComponent(current)}`);
+  renderTimeline(d.timeline);
+}
+async function run(fn) {
+  if (busy) return;
+  busy = true; setControls();
+  $("out").textContent = "Working... Memory operations may take a moment.";
+  $("out").setAttribute("aria-busy", "true");
+  showMemories([]);
+  try { await fn(); }
+  catch (e) { $("out").textContent = "Error: " + e.message; showMemories([]); }
+  finally { busy = false; $("out").setAttribute("aria-busy", "false"); setControls(); }
+}
+function display(r, key) {
+  const mode = r.generation || (r.llm ? "groq" : "template");
+  $("out").textContent = r[key] + `\n\nGenerated with: ${mode}`;
+  showMemories(r.memories_used);
+}
+$("btn-brief").onclick = () => run(async () => display(await api(`/api/deals/${current}/brief`, {method:"POST"}), "brief"));
+$("btn-baseline").onclick = () => run(async () => {
+  const baseline = await api(`/api/deals/${current}/brief?use_memory=false`, {method:"POST"});
+  const remembered = await api(`/api/deals/${current}/brief`, {method:"POST"});
+  $("out").textContent = `WITHOUT MEMORY (${baseline.generation})\n${baseline.brief}\n\nWITH MEMORY (${remembered.generation})\n${remembered.brief}`;
+  showMemories(remembered.memories_used);
+});
+$("btn-followup").onclick = () => run(async () => display(await api(`/api/deals/${current}/followup`, {method:"POST", body:"{}"}), "email"));
+$("btn-tactics").onclick = () => run(async () => display(await api(`/api/deals/${current}/tactics`), "tactics"));
+$("btn-log").onclick = () => run(async () => {
+  const notes = $("notes").value.trim(), outcome = $("outcome").value.trim();
+  if (notes.length < 3) throw new Error("Write at least three characters of call notes first.");
+  const signature = JSON.stringify([current, notes, outcome]);
+  if (!pendingCall || pendingCall.signature !== signature) pendingCall = {signature, id: crypto.randomUUID()};
+  const r = await api(`/api/deals/${current}/log-call`, {method:"POST", body:JSON.stringify({notes, outcome, call_id:pendingCall.id})});
+  pendingCall = null;
+  $("notes").value = ""; $("outcome").value = ""; drafts.delete(current);
+  $("out").textContent = r.duplicate
+    ? `Already saved — no duplicates created. Stored facts: ${r.memory_count ?? "unknown"}.`
+    : `Saved ${r.retained.length} source notes. Stored facts: ${r.memory_count ?? "unknown"}.`;
+  showMemories([]);
+  await refreshTimeline(); await refreshDeals();
+});
+$("btn-seed").onclick = () => run(async () => {
+  const r = await api("/api/demo/seed", {method:"POST"});
+  await refreshDeals(); await refreshTimeline();
+  $("out").textContent = `Loaded/refreshed ${r.seeded_calls} synthetic calls. Repeated loading is safe. Try Compare without memory.`;
+  showMemories([]);
+});
+$("btn-reset").onclick = () => {
+  if (!confirm("Delete all local stored memories? Use Compare without memory if you only want to see the baseline.")) return;
+  run(async () => {
+    await api("/api/demo/reset", {method:"POST"});
+    await refreshDeals(); await refreshTimeline();
+    $("out").textContent = "Local stored memory reset. Unsaved drafts are preserved.";
+    showMemories([]);
+  });
+};
+run(async () => { await refreshHealth(); await refreshDeals(); });
+</script>
+</body>
+</html>
